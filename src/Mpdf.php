@@ -32,7 +32,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 	use FpdiTrait;
 	use MpdfPsrLogAwareTrait;
 
-	const VERSION = '8.2.5';
+	const VERSION = '8.2.6';
 
 	const SCALE = 72 / 25.4;
 
@@ -76,7 +76,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 	var $PDFXauto;
 
 	var $PDFA;
-	var $PDFAversion = '1-B';
+	var $PDFAversion;
 	var $PDFAauto;
 	var $ICCProfile;
 
@@ -3912,6 +3912,7 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 			$regenerate = true;
 		} // mPDF 6
 
+		$glyphIDtoUni = null;
 		if (empty($font['name']) || $font['originalsize'] != $ttfstat['size'] || $regenerate) {
 			$generator = new MetricsGenerator($this->fontCache, $this->fontDescriptor);
 
@@ -22240,16 +22241,20 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 
 					// lookahead for pagebreak
 					$pagebreaklookahead = 1;
+					$pagebreaklookaheadheight = $h;
 					while (isset($table['pagebreak-before']) && isset($table['pagebreak-before'][$i + $pagebreaklookahead]) && $table['pagebreak-before'][$i + $pagebreaklookahead] == 'avoid') {
 						// pagebreak-after is mapped to pagebreak-before on i+1 in Tags/Tr.php
 						$pagebreaklookahead++;
+						list($y2, $h2) = $this->_tableGetHeight($table, $i + $pagebreaklookahead, $j);
+						$pagebreaklookaheadheight += $h2;
+
 					}
 					// corner case: if the pagelookahead is bigger than the pagesize, we break anyway, so fill up the page
-					if ($pagebreaklookahead * $maxrowheight + $extra > $pagetrigger + 0.001) {
+					if ($pagebreaklookaheadheight + $extra > $pagetrigger + 0.001) {
 						$pagebreaklookahead = 1;
+						$pagebreaklookaheadheight = $h;
 					}
-					// if we exceed page boundaries: restart table on next page before printing the line
-					if ($j == $startcol && ((($y + $pagebreaklookahead * $maxrowheight + $extra ) > ($pagetrigger + 0.001)) || (($this->keepColumns || !$this->ColActive) && !empty($tablefooter) && ($y + $maxrowheight + $tablefooterrowheight + $extra) > $pagetrigger) && ($this->tableLevel == 1 && $i < ($numrows - $table['headernrows']))) && ($y0 > 0 || $x0 > 0) && !$this->InFooter && $this->autoPageBreak) {
+					if ($j == $startcol && ((($y + $pagebreaklookaheadheight + $extra ) > ($pagetrigger + 0.001)) || (($this->keepColumns || !$this->ColActive) && !empty($tablefooter) && ($y + $maxrowheight + $tablefooterrowheight + $extra) > $pagetrigger) && ($this->tableLevel == 1 && $i < ($numrows - $table['headernrows']))) && ($y0 > 0 || $x0 > 0) && !$this->InFooter && $this->autoPageBreak) {
 						if (!$skippage) {
 							$finalSpread = true;
 							$firstSpread = true;
